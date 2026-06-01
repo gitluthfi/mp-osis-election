@@ -6,15 +6,16 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   SharedPreferences preferences = await SharedPreferences.getInstance();
   var nik = preferences.get("nik");
-  var pw = preferences.get("password");
+  var pw  = preferences.get("password");
   runApp(MyApp(
-    nik: nik,
-    password: pw,
+    nik:      nik?.toString(),
+    password: pw?.toString(),
   ));
 }
 
 class MyApp extends StatelessWidget {
-  final String nik, password;
+  final String? nik;
+  final String? password;
 
   const MyApp({this.nik, this.password});
 
@@ -27,33 +28,7 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      home: Launcher(nik: nik, password: password,),
-      // token == null
-      //     ? Launcher()
-      //     : Container(
-      //         child: FutureBuilder(
-      //           future: isAlreadyChosen(),
-      //           builder: (context, snapshot) {
-      //             print(snapshot.data);
-      //             if(snapshot.data == false){
-      //               return Countdown();
-      //             }else if(snapshot.data == true){
-      //               return Post();
-      //             }else{
-      //               return Countdown();
-      //             }
-      //           },
-      //         ),
-      //       ),
+      home: Launcher(nik: nik, password: password),
     );
   }
-
-  // Future<bool> isAlreadyChosen() async {
-  //   Firestore firestore = Firestore.instance;
-  //   QuerySnapshot querySnapshot = await firestore
-  //       .collection("user")
-  //       .where("iduser", isEqualTo: token)
-  //       .getDocuments();
-  //   return querySnapshot.documents[0].data["chosen"];
-  // }
 }

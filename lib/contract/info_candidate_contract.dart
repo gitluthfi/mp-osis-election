@@ -1,11 +1,11 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:election_flutter_app/model/DataCandidate.dart';
 
-abstract class InfoCandidateContractPresenter{
-  getInfoCandidate(){}
-  loadData(){}
+abstract class InfoCandidateContractPresenter {
+  getInfoCandidate() {}
+  loadData() {}
 }
 
-abstract class InfoCandidateContractView{
-  setInfoCandidate(List<DocumentSnapshot> value){}
-  setOnErrorInfoCandidate(String error){}
+abstract class InfoCandidateContractView {
+  setInfoCandidate(List<DataCandidate> value) {}
+  setOnErrorInfoCandidate(String error) {}
 }

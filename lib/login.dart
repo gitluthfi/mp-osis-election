@@ -1,3 +1,4 @@
+import 'package:election_flutter_app/admin/admin_dashboard.dart';
 import 'package:election_flutter_app/constants.dart';
 import 'package:election_flutter_app/countdown.dart';
 import 'package:election_flutter_app/contract/login_contract.dart';
@@ -18,19 +19,14 @@ class Login extends StatefulWidget {
 class LoginScreen extends State<Login> implements LoginContractView {
   TextEditingController emailController = TextEditingController();
   TextEditingController passwordController = TextEditingController();
-  LoginPresenter loginPresenter;
-  var isLoading;
-  var isError;
-
-  LoginScreen() {
-    loginPresenter = LoginPresenter(this);
-  }
+  late LoginPresenter loginPresenter;
+  bool isLoading = false;
+  bool isError = false;
 
   @override
   void initState() {
     super.initState();
-    isLoading = false;
-    isError = false;
+    loginPresenter = LoginPresenter(this);
   }
 
   @override
@@ -198,7 +194,11 @@ class LoginScreen extends State<Login> implements LoginContractView {
           color: Colors.white,
           borderRadius: BorderRadius.all(Radius.circular(30)),
         ),
-        child: FlatButton(
+        child: TextButton(
+          style: TextButton.styleFrom(
+            foregroundColor: AppColor().blueColor,
+            minimumSize: Size(double.infinity, 50),
+          ),
           onPressed: () {
             if (emailController.text.trim().length > 0 &&
                 passwordController.text.trim().length > 0) {
@@ -261,7 +261,7 @@ class LoginScreen extends State<Login> implements LoginContractView {
                 color: Colors.white70,
               ),
             ),
-            FlatButton(
+            TextButton(
               onPressed: () {},
               child: Text(
                 "Register now.",
@@ -280,79 +280,35 @@ class LoginScreen extends State<Login> implements LoginContractView {
 
   @override
   setLoginData(LoginModel.Login loginData) async {
-    if (loginData == null) {
-      setState(() {
-        isError = true;
-        isLoading = false;
-      });
-      errorAlert("Data not found", "Check your connection");
-    } else {
-      if (loginData.status == 'success') {
-        SharedPreferences preferences = await SharedPreferences.getInstance();
-        await preferences.setString("nik", loginData.data[0].nik_voter);
-        await preferences.setString("password", loginData.data[0].password_voter);
-        await preferences.setString("id", loginData.data[0].id_voter);
-        setState(() {
-          isLoading = false;
-        });
-        if (!isLoading && !isError && loginData.data[0].ischosen == '0') {
-          Navigator.pushReplacement(context,
-              MaterialPageRoute(builder: (context) {
-            return Countdown();
-          }));
-        } else if (!isLoading && !isError && loginData.data[0].ischosen == '1') {
-          Navigator.pushReplacement(context,
-              MaterialPageRoute(builder: (context) {
-            return Post();
-          }));
-        }
-      } else if (loginData.status == 'failed') {
-        if (loginData.message == 'You are already log in on other device') {
-          setState(() {
-            isError = true;
-            isLoading = false;
-          });
-          errorAlert("Failed", "You are already log in on other device");
-        } else if (loginData.message ==
-            'Please contact the admin to ask for account') {
-          setState(() {
-            isError = true;
-            isLoading = false;
-          });
-          errorAlert("Failed", "Please contact the admin to ask for account");
-        } else if (loginData.message == 'Access denied') {
-          setState(() {
-            isError = true;
-            isLoading = false;
-          });
-          errorAlert("Failed", "Access denied");
-        }
+    if (loginData.status == 'success') {
+      final user = loginData.data![0];
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString("nik",      user.nik_voter      ?? '');
+      await prefs.setString("password", user.password_voter ?? '');
+      await prefs.setString("id",       user.id_voter       ?? '');
+      await prefs.setString("role",     user.role           ?? 'voter');
+      setState(() => isLoading = false);
+
+      if (user.role == 'admin') {
+        Navigator.pushReplacement(context,
+            MaterialPageRoute(builder: (_) => AdminDashboard(nik: user.nik_voter ?? '')));
+        return;
       }
+
+      if (user.ischosen == '1') {
+        Navigator.pushReplacement(context,
+            MaterialPageRoute(builder: (_) => Post()));
+      } else {
+        Navigator.pushReplacement(context,
+            MaterialPageRoute(builder: (_) => Countdown()));
+      }
+    } else if (loginData.status == 'failed') {
+      setState(() { isError = true; isLoading = false; });
+      errorAlert("Login Gagal", loginData.message ?? 'Login failed');
+    } else {
+      setState(() { isError = true; isLoading = false; });
+      errorAlert("Data tidak ditemukan", "Periksa koneksi internet Anda");
     }
-    // if (value.isEmpty || value.length == 0) {
-    //   setState(() {
-    //     isLoading = false;
-    //   });
-    //   errorAlert(
-    //       "Data not found", "Please contact the admin to ask for account");
-    // } else {
-    //   SharedPreferences preferences = await SharedPreferences.getInstance();
-    //   await preferences.setString("uid", value[0]);
-    //   setState(() {
-    //     isLoading = false;
-    //   });
-    //   if (!isLoading && !isError && !value[1]) {
-    //     Navigator.pushReplacement(context,
-    //         MaterialPageRoute(builder: (context) {
-    //       return Countdown();
-    //     }));
-    //   } else if (value[1]) {
-    //     Navigator.pushReplacement(context,
-    //         MaterialPageRoute(builder: (context) {
-    //       return Post();
-    //     }));
-    //   }
-    // }
   }
 
   @override

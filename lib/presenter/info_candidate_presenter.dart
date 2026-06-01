@@ -1,24 +1,28 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:convert';
+
+import 'package:election_flutter_app/constants.dart';
 import 'package:election_flutter_app/contract/info_candidate_contract.dart';
+import 'package:election_flutter_app/model/Candidate.dart';
+import 'package:election_flutter_app/model/DataCandidate.dart';
+import 'package:http/http.dart';
 
 class InfoCandidatePresenter implements InfoCandidateContractPresenter {
-  InfoCandidateContractView _infoCandidateContractView;
+  late InfoCandidateContractView _view;
 
-  InfoCandidatePresenter(this._infoCandidateContractView);
+  InfoCandidatePresenter(this._view);
 
   @override
-  Future<List<DocumentSnapshot>> getInfoCandidate() async {
-    Firestore firestore = Firestore.instance;
-    QuerySnapshot snapshot =
-        await firestore.collection("candidate").getDocuments();
-    return snapshot.documents;
+  Future<List<DataCandidate>> getInfoCandidate() async {
+    final url = Uri.parse("${UrlConst().domain}Candidate");
+    final response = await Client().get(url);
+    final content = json.decode(response.body);
+    return Candidate.fromJson(content).data ?? [];
   }
 
   @override
   loadData() {
     getInfoCandidate()
-        .then((value) => _infoCandidateContractView.setInfoCandidate(value))
-        .catchError((error) =>
-            _infoCandidateContractView.setOnErrorInfoCandidate(error.toString()));
+        .then((value) => _view.setInfoCandidate(value))
+        .catchError((error) => _view.setOnErrorInfoCandidate(error.toString()));
   }
 }

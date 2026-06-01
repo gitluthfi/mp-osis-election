@@ -6,13 +6,13 @@ import 'package:election_flutter_app/model/Logout.dart';
 import 'package:http/http.dart';
 
 class LogoutPresenter implements LogoutContractPresenter {
-  LogoutContractView _logoutContractView;
+  late LogoutContractView _logoutContractView;
 
   LogoutPresenter(this._logoutContractView);
 
   @override
   Future<Logout> getLogoutData(String nik, String password) async {
-    String url = "${UrlConst().domain}Logout";
+    final url = Uri.parse("${UrlConst().domain}Logout");
     Client client = Client();
     var response = await client.post(
       url,

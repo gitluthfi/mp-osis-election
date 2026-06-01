@@ -6,5 +6,5 @@ class AppColor{
 }
 
 class UrlConst{
-  final String domain = "https://apiosis.000webhostapp.com/olection/api/";
+  final String domain = "http://localhost:3000/api/";
 }

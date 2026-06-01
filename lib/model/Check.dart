@@ -1,9 +1,9 @@
 import 'package:election_flutter_app/model/Data.dart';
 
 class Check {
-  List<Data> data;
-  String message;
-  String status;
+  List<Data>? data;
+  String? message;
+  String? status;
 
   Check({this.data, this.message, this.status});
 
@@ -16,11 +16,11 @@ class Check {
   }
 
   Map<String, dynamic> toJson() {
-    final Map<String, dynamic> map = new Map<String, dynamic>();
+    final Map<String, dynamic> map = {};
     map['message'] = this.message;
     map['status'] = this.status;
     if (this.data != null) {
-      map['data'] = this.data.map((v) => v.toJson()).toList();
+      map['data'] = this.data!.map((v) => v.toJson()).toList();
     }
     return map;
   }

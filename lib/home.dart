@@ -1,47 +1,38 @@
-import 'dart:ui';
-
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:election_flutter_app/constants.dart';
 import 'package:election_flutter_app/contract/info_candidate_contract.dart';
 import 'package:election_flutter_app/contract/vote_contract.dart';
+import 'package:election_flutter_app/model/DataCandidate.dart';
 import 'package:election_flutter_app/model/Vote.dart';
 import 'package:election_flutter_app/post.dart';
 import 'package:election_flutter_app/presenter/info_candidate_presenter.dart';
 import 'package:election_flutter_app/presenter/vote_presenter.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:rflutter_alert/rflutter_alert.dart';
 
 class Home extends StatefulWidget {
   @override
-  State<StatefulWidget> createState() {
-    return HomeScreen();
-  }
+  State<StatefulWidget> createState() => HomeScreen();
 }
 
 class HomeScreen extends State<Home>
     with TickerProviderStateMixin
     implements InfoCandidateContractView, VoteContractView {
-  InfoCandidatePresenter infoCandidatePresenter;
-  VotePresenter votePresenter;
-  List<DocumentSnapshot> infoCandidateList = List<DocumentSnapshot>();
+  late InfoCandidatePresenter infoCandidatePresenter;
+  late VotePresenter votePresenter;
+
+  List<DataCandidate> candidates = [];
   int index = 0;
   String chosenId = "1";
   bool showDesc = false;
-  var isPostVote;
-  var isLoading;
-
-  HomeScreen() {
-    infoCandidatePresenter = InfoCandidatePresenter(this);
-    votePresenter = VotePresenter(this);
-  }
+  bool isPostVote = false;
+  bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
+    infoCandidatePresenter = InfoCandidatePresenter(this);
+    votePresenter = VotePresenter(this);
     infoCandidatePresenter.loadData();
-    isLoading = true;
-    isPostVote = false;
   }
 
   @override
@@ -50,447 +41,291 @@ class HomeScreen extends State<Home>
       body: Container(
         color: AppColor().blueColor,
         child: isPostVote
-            ? Center(
-                child: CircularProgressIndicator(
-                  backgroundColor: AppColor().blueColor,
-                ),
-              )
-            : Container(
-                width: MediaQuery.of(context).size.width,
-                height: MediaQuery.of(context).size.height,
-                color: AppColor().blueColor,
-                child: SafeArea(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        margin: EdgeInsets.all(10),
-                        child: Row(
-                          children: [
-                            Padding(
-                              padding: EdgeInsets.only(
-                                top: 16,
-                                left: 10,
-                                bottom: 16,
-                                right: 10,
-                              ),
-                              child: RotatedBox(
-                                quarterTurns: -1,
-                                child: Text(
-                                  "VOTE",
-                                  style: TextStyle(
-                                      color: AppColor().whiteColor,
-                                      fontSize: 38,
-                                      fontWeight: FontWeight.w900),
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              child: Text(
-                                "Your choices determine\nthe future of your school",
-                                style: TextStyle(
-                                  color: AppColor().whiteColor,
-                                  fontSize: 24,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Expanded(
-                        child: Container(
-                          padding: EdgeInsets.only(
-                            top: 10,
-                            bottom: 10,
-                          ),
-                          width: MediaQuery.of(context).size.width,
-                          decoration: BoxDecoration(
-                            color: AppColor().whiteColor,
-                            borderRadius: BorderRadius.only(
-                              topLeft: Radius.circular(20),
-                              topRight: Radius.circular(20),
-                            ),
-                          ),
-                          child: Column(
-                            children: [
-                              Expanded(
-                                child: PageView.builder(
-                                  itemBuilder: pageViewBuilder,
-                                  itemCount: infoCandidateList.length,
-                                  controller: PageController(
-                                    viewportFraction: 0.8,
-                                  ),
-                                  onPageChanged: pageViewOnChange,
-                                ),
-                              ),
-                              Container(
-                                margin: EdgeInsets.only(
-                                  top: 10,
-                                  bottom: 10,
-                                  left: 16,
-                                  right: 16,
-                                ),
-                                width: MediaQuery.of(context).size.width,
-                                child: RaisedButton(
-                                  onPressed: () {
-                                    Alert(
-                                      context: context,
-                                      title: "Vote",
-                                      desc:
-                                          "Are you sure you chose candidate number $chosenId?",
-                                      type: AlertType.info,
-                                      buttons: [
-                                        DialogButton(
-                                          onPressed: () =>
-                                              Navigator.pop(context),
-                                          child: Text(
-                                            "Cancel",
-                                            style: TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 20),
-                                          ),
-                                          color: Colors.grey,
-                                        ),
-                                        DialogButton(
-                                          onPressed: () {
-                                            setPostVote(true);
-                                            votePresenter.loadVoteData(chosenId);
-                                            Navigator.pop(context);
-                                          },
-                                          child: Text(
-                                            "Confirm",
-                                            style: TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 20),
-                                          ),
-                                        ),
-                                      ],
-                                      style: AlertStyle(
-                                        animationType: AnimationType.fromBottom,
-                                        isCloseButton: false,
-                                        isOverlayTapDismiss: false,
-                                        descStyle: TextStyle(
-                                            fontWeight: FontWeight.bold),
-                                        descTextAlign: TextAlign.start,
-                                        animationDuration:
-                                            Duration(milliseconds: 400),
-                                        alertBorder: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(10),
-                                          side: BorderSide(
-                                            color: Colors.grey,
-                                          ),
-                                        ),
-                                        titleStyle: TextStyle(
-                                          color: AppColor().blueColor,
-                                        ),
-                                        alertAlignment: Alignment.center,
-                                      ),
-                                    ).show();
-                                  },
-                                  elevation: 8,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  hoverColor: Colors.blue,
-                                  focusColor: Colors.blue,
-                                  splashColor: Colors.blue,
-                                  color: AppColor().blueColor,
-                                  padding: EdgeInsets.all(5),
-                                  textColor: AppColor().whiteColor,
-                                  child: Padding(
-                                    padding: EdgeInsets.only(
-                                      top: 10,
-                                      bottom: 10,
-                                    ),
-                                    child: Text(
-                                      "Vote candidate number $chosenId",
-                                      style: TextStyle(
-                                        fontSize: 20,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+            ? const Center(child: CircularProgressIndicator(color: Colors.white))
+            : isLoading
+                ? const Center(child: CircularProgressIndicator(color: Colors.white))
+                : _body(),
       ),
     );
   }
 
-  Widget pageViewBuilder(BuildContext context, int i) {
-    return Transform.scale(
-      scale: i == index ? 1 : 0.9,
-      child: Card(
-        shadowColor: Colors.black.withOpacity(0.5),
-        elevation: 10,
-        color: AppColor().blueColor,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Stack(
+  Widget _body() {
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      color: AppColor().blueColor,
+      child: SafeArea(
+        child: Column(
           children: [
-            Column(
-              children: [
-                Expanded(
-                  child: SizedBox.expand(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.all(Radius.circular(20)),
-                      child: FittedBox(
-                        child: Image.network(
-                          infoCandidateList[i].data["candidate_photo"],
-                          loadingBuilder: loadingBuilderCandidate,
-//                        fit: BoxFit.cover,
-                        ),
-                        fit: BoxFit.fill,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            Column(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Container(
-                  width: MediaQuery.of(context).size.width,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.all(Radius.circular(20)),
-                    color: AppColor().blueColor,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.5),
-                        spreadRadius: 0,
-                        blurRadius: 10,
-                        offset: Offset(0, -20), // changes position of shadow
-                      ),
-                    ],
-                  ),
-                  child: FlatButton(
-                    splashColor: Colors.amberAccent,
-                    onPressed: onClickDesc,
-                    child: Container(
-                      width: MediaQuery.of(context).size.width,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.all(Radius.circular(20)),
-                        color: AppColor().blueColor,
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Padding(
-                            padding: EdgeInsets.all(10),
-                            child: Text(
-                              infoCandidateList[i].data["candidate_name"],
-                              style: TextStyle(
-                                color: AppColor().whiteColor,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 20,
-                              ),
-                              textAlign: TextAlign.start,
-                            ),
-                          ),
-                          Padding(
-                            padding: showDesc
-                                ? EdgeInsets.all(10)
-                                : EdgeInsets.all(0),
-                            child: showDesc ? expandedDesc(i) : null,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            _header(),
+            Expanded(child: _cardArea()),
           ],
         ),
       ),
     );
   }
 
-  @override
-  setInfoCandidate(List<DocumentSnapshot> value) {
+  Widget _header() {
+    return Container(
+      margin: const EdgeInsets.all(10),
+      child: Row(children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 16),
+          child: RotatedBox(
+            quarterTurns: -1,
+            child: Text("VOTE",
+                style: TextStyle(
+                    color: AppColor().whiteColor,
+                    fontSize: 38,
+                    fontWeight: FontWeight.w900)),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            "Your choices determine\nthe future of your school",
+            style: TextStyle(color: AppColor().whiteColor, fontSize: 24),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Widget _cardArea() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: AppColor().whiteColor,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+        ),
+      ),
+      child: Column(children: [
+        Expanded(
+          child: PageView.builder(
+            itemCount: candidates.length,
+            controller: PageController(viewportFraction: 0.8),
+            onPageChanged: _onPageChanged,
+            itemBuilder: _cardBuilder,
+          ),
+        ),
+        _voteButton(),
+      ]),
+    );
+  }
+
+  Widget _cardBuilder(BuildContext context, int i) {
+    final c = candidates[i];
+    return Transform.scale(
+      scale: i == index ? 1 : 0.9,
+      child: Card(
+        shadowColor: Colors.black54,
+        elevation: 10,
+        color: AppColor().blueColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Stack(children: [
+          // ── foto ──────────────────────────────────────────────────
+          ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: SizedBox.expand(
+              child: c.candidatePhoto != null
+                  ? Image.network(
+                      c.candidatePhoto!,
+                      fit: BoxFit.cover,
+                      loadingBuilder: _loadingBuilder,
+                      errorBuilder: (_, __, ___) => _photoPlaceholder(),
+                    )
+                  : _photoPlaceholder(),
+            ),
+          ),
+          // ── info bawah ────────────────────────────────────────────
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                color: AppColor().blueColor.withOpacity(0.9),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.4),
+                    blurRadius: 10,
+                    offset: const Offset(0, -10),
+                  )
+                ],
+              ),
+              child: TextButton(
+                onPressed: () => setState(() => showDesc = !showDesc),
+                child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "No. ${c.candidateId} — ${c.candidateName ?? ''}",
+                        style: TextStyle(
+                            color: AppColor().whiteColor,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18),
+                      ),
+                      if (showDesc && c.description != null && c.description!.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(c.description!,
+                              style: TextStyle(
+                                  color: AppColor().whiteColor, fontSize: 14)),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  Widget _photoPlaceholder() {
+    return Container(
+      color: AppColor().blueColor.withOpacity(0.3),
+      child: Center(
+        child: Icon(Icons.person, size: 100, color: Colors.white54),
+      ),
+    );
+  }
+
+  Widget _loadingBuilder(BuildContext ctx, Widget child, ImageChunkEvent? progress) {
+    if (progress == null) return child;
+    return Center(
+      child: CircularProgressIndicator(
+        value: progress.expectedTotalBytes != null
+            ? progress.cumulativeBytesLoaded / progress.expectedTotalBytes!
+            : null,
+        color: Colors.white,
+        strokeWidth: 1,
+      ),
+    );
+  }
+
+  Widget _voteButton() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+      width: double.infinity,
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColor().blueColor,
+          foregroundColor: AppColor().whiteColor,
+          elevation: 8,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          padding: const EdgeInsets.symmetric(vertical: 14),
+        ),
+        onPressed: _showVoteConfirm,
+        child: Text("Vote kandidat nomor $chosenId",
+            style: const TextStyle(fontSize: 18)),
+      ),
+    );
+  }
+
+  void _showVoteConfirm() {
+    Alert(
+      context: context,
+      title: "Vote",
+      desc: "Yakin memilih kandidat nomor $chosenId?",
+      type: AlertType.info,
+      buttons: [
+        DialogButton(
+          onPressed: () => Navigator.pop(context),
+          color: Colors.grey,
+          child: const Text("Batal", style: TextStyle(color: Colors.white, fontSize: 18)),
+        ),
+        DialogButton(
+          onPressed: () {
+            setState(() => isPostVote = true);
+            votePresenter.loadVoteData(chosenId);
+            Navigator.pop(context);
+          },
+          child: const Text("Konfirmasi", style: TextStyle(color: Colors.white, fontSize: 18)),
+        ),
+      ],
+      style: _alertStyle(AppColor().blueColor),
+    ).show();
+  }
+
+  void _onPageChanged(int value) {
     setState(() {
-      infoCandidateList = value;
+      index = value;
+      chosenId = candidates[value].candidateId ?? "1";
+      showDesc = false;
+    });
+  }
+
+  // ── Contract implementations ──────────────────────────────────────────────
+
+  @override
+  setInfoCandidate(List<DataCandidate> value) {
+    setState(() {
+      candidates = value;
+      if (value.isNotEmpty) chosenId = value[0].candidateId ?? "1";
       isLoading = false;
     });
   }
 
   @override
   setOnErrorInfoCandidate(String error) {
-    print(error);
-  }
-
-  void pageViewOnChange(int value) {
-    setState(() {
-      index = value;
-      chosenId = infoCandidateList[value].data["candidate_id"];
-    });
-    print(chosenId);
-  }
-
-  void onClickDesc() {
-    if (!showDesc) {
-      setState(() {
-        showDesc = true;
-      });
-    } else {
-      setState(() {
-        showDesc = false;
-      });
-    }
-  }
-
-  expandedDesc(int i) {
-    return Text(
-      infoCandidateList[i].data["candidate_name"],
-      style: TextStyle(
-        color: AppColor().whiteColor,
-        fontWeight: FontWeight.normal,
-        fontSize: 16,
-      ),
-      textAlign: TextAlign.start,
-    );
-  }
-
-  Widget loadingBuilderCandidate(
-      BuildContext context, Widget child, ImageChunkEvent loadingProgress) {
-    if (loadingProgress == null) return child;
-    return Center(
-      child: CircularProgressIndicator(
-        strokeWidth: 1,
-        valueColor: AlwaysStoppedAnimation(AppColor().whiteColor),
-        value: loadingProgress.expectedTotalBytes != null
-            ? loadingProgress.cumulativeBytesLoaded /
-                loadingProgress.expectedTotalBytes
-            : null,
-      ),
-    );
+    setState(() => isLoading = false);
+    print("Candidate load error: $error");
   }
 
   @override
   onErrorVote(error) {
-    setPostVote(false);
-    print(error.toString());
-    errorAlert("Failed", "Access Denied", "denied");
+    setState(() => isPostVote = false);
+    _errorAlert("Gagal", "Akses ditolak");
   }
 
   @override
   setVoteData(Vote vote) {
-    print(vote.status);
-    if (vote != null) {
-      if (vote.status == "success") {
-        setPostVote(false);
-        return Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) {
-          return Post();
-        }));
-      } else if (vote.status == "failed"){
-        setPostVote(false);
-        errorAlert("Failed", "User already choosing", "already");
-      }
+    if (vote.status == "success") {
+      setState(() => isPostVote = false);
+      Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => Post()));
     } else {
-      setPostVote(false);
-      errorAlert("Failed", "Check your internet connection", "connection");
+      setState(() => isPostVote = false);
+      final msg = vote.status == "failed" && vote.message == "User already choosing"
+          ? "Anda sudah pernah memilih"
+          : "Periksa koneksi internet Anda";
+      _errorAlert("Gagal", msg);
     }
   }
 
-  setPostVote(bool b){
-    setState(() {
-      isPostVote = b;
-    });
-  }
-
-  errorAlert(title, subtitle, condition){
-    return Alert(
+  void _errorAlert(String title, String subtitle) {
+    Alert(
       context: context,
-      title: title.toString(),
-      desc: subtitle.toString(),
+      title: title,
+      desc: subtitle,
       type: AlertType.warning,
       buttons: [
         DialogButton(
-          onPressed: () {
-            if (condition.toString() == "connection"){
-              Navigator.pop(context);
-            } else if (condition.toString() == "denied"){
-              print("logout");
-              Navigator.pop(context);
-            } else if (condition.toString() == "already"){
-              Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) {
-                return Post();
-              }));
-            }
-          },
-          child: Text(
-            "OK",
-            style: TextStyle(color: Colors.white, fontSize: 20),
-          ),
+          onPressed: () => Navigator.pop(context),
+          child: const Text("OK", style: TextStyle(color: Colors.white, fontSize: 18)),
         ),
       ],
-      style: AlertStyle(
+      style: _alertStyle(Colors.red),
+    ).show();
+  }
+
+  AlertStyle _alertStyle(Color titleColor) => AlertStyle(
         animationType: AnimationType.grow,
         isCloseButton: false,
         isOverlayTapDismiss: false,
-        descStyle: TextStyle(fontWeight: FontWeight.bold),
-        descTextAlign: TextAlign.start,
-        animationDuration: Duration(milliseconds: 400),
+        descStyle: const TextStyle(fontWeight: FontWeight.bold),
+        animationDuration: const Duration(milliseconds: 400),
         alertBorder: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-          side: BorderSide(
-            color: Colors.grey,
-          ),
-        ),
-        titleStyle: TextStyle(
-          color: Colors.red,
-        ),
+            borderRadius: BorderRadius.circular(10),
+            side: const BorderSide(color: Colors.grey)),
+        titleStyle: TextStyle(color: titleColor),
         alertAlignment: Alignment.center,
-      ),
-    ).show(); 
-  }
+      );
 }
-
-//  infoCard() {
-//    print(infoCandidateList.length);
-//    return TinderSwapCard(
-//      cardBuilder: (BuildContext context, int index) {
-//        return Card(
-//          child:
-//          Image.network(infoCandidateList[index].data["candidate_photo"]),
-//        );
-//      },
-//      totalNum: infoCandidateList.length,
-//      stackNum: infoCandidateList.length,
-//      cardController: cardController = CardController(),
-//      swipeUpdateCallback: updateCallback,
-//      swipeCompleteCallback: completeCallback,
-//      orientation: AmassOrientation.BOTTOM,
-//      swipeEdge: 4.0,
-//      maxWidth: MediaQuery.of(context).size.width * 0.9,
-//      maxHeight: MediaQuery.of(context).size.width * 0.9,
-//      minWidth: MediaQuery.of(context).size.width * 0.8,
-//      minHeight: MediaQuery.of(context).size.width * 0.8,
-//    );
-//  }
-//
-//  void updateCallback(DragUpdateDetails details, Alignment align) {
-//    if (align.x < 0) {
-//      print("Card is LEFT swiping");
-//    } else if (align.x > 0) {
-//      print("Card is RIGHT swiping");
-//    } else if (align.y > 0) {
-//      print("Card is TOP swiping");
-//    } else if (align.y < 0) {
-//      print("Card is BOTTOM swiping");
-//    }
-//  }
-//
-//  void completeCallback(CardSwipeOrientation orientation, int index) {
-//    print(index.toString());
-//  }
