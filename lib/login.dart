@@ -6,354 +6,269 @@ import 'package:election_flutter_app/model/Login.dart' as LoginModel;
 import 'package:election_flutter_app/presenter/login_presenter.dart';
 import 'package:election_flutter_app/post.dart';
 import 'package:flutter/material.dart';
-import 'package:rflutter_alert/rflutter_alert.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class Login extends StatefulWidget {
   @override
-  State<StatefulWidget> createState() {
-    return LoginScreen();
-  }
+  State<StatefulWidget> createState() => LoginScreen();
 }
 
 class LoginScreen extends State<Login> implements LoginContractView {
-  TextEditingController emailController = TextEditingController();
-  TextEditingController passwordController = TextEditingController();
-  late LoginPresenter loginPresenter;
-  bool isLoading = false;
-  bool isError = false;
+  final _nikCtrl      = TextEditingController();
+  final _passwordCtrl = TextEditingController();
+  late LoginPresenter _presenter;
+
+  bool _loading    = false;
+  bool _obscure    = true;
+  bool _hasError   = false;
 
   @override
   void initState() {
     super.initState();
-    loginPresenter = LoginPresenter(this);
+    _presenter = LoginPresenter(this);
   }
+
+  @override
+  void dispose() {
+    _nikCtrl.dispose();
+    _passwordCtrl.dispose();
+    super.dispose();
+  }
+
+  // ─── Build ────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topRight,
-            end: Alignment.bottomLeft,
-            colors: [
-              AppColor().blueColor,
-              Color(0xff524CFF),
-            ],
+      resizeToAvoidBottomInset: true,
+      body: Stack(
+        children: [
+          // Gradient background
+          Container(
+            decoration: const BoxDecoration(gradient: AppTheme.softGradient),
           ),
-        ),
-        child: isLoading
-            ? Center(
-                child: CircularProgressIndicator(
-                  backgroundColor: Colors.white,
-                ),
-              )
-            : ListView(
-                children: [
-                  Column(
-                    children: [
-                      Row(
-                        children: [
-                          verticalTitle(),
-                          textLogin(),
-                        ],
-                      ),
-                      inputEmail(),
-                      inputPassword(),
-                      buttonLogin(),
-                      firstTime(),
-                    ],
-                  ),
-                ],
-              ),
-      ),
-    );
-  }
-
-  verticalTitle() {
-    return Padding(
-      padding: EdgeInsets.only(top: 60, left: 10),
-      child: RotatedBox(
-        quarterTurns: -1,
-        child: Text(
-          "Sign In",
-          style: TextStyle(
-              color: Colors.white, fontSize: 38, fontWeight: FontWeight.w900),
-        ),
-      ),
-    );
-  }
-
-  textLogin() {
-    return Padding(
-      padding: EdgeInsets.only(top: 50, left: 10),
-      child: Container(
-        height: 200,
-        width: 200,
-        child: Column(
-          children: [
-            Container(
-              height: 60,
+          SafeArea(
+            child: Column(
+              children: [
+                _header(),
+                Expanded(child: _formCard()),
+              ],
             ),
+          ),
+          if (_loading)
+            Container(
+              color: Colors.black.withValues(alpha: 0.3),
+              child: const Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Header ───────────────────────────────────────────────────────────────
+
+  Widget _header() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.18),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white.withValues(alpha: 0.35), width: 1.5),
+            ),
+            child: const Icon(Icons.how_to_vote_rounded, size: 44, color: Colors.white),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'STARBHAK',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 26,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 5,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Student Council Election',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.85),
+              fontSize: 13,
+              letterSpacing: 1.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Form Card ────────────────────────────────────────────────────────────
+
+  Widget _formCard() {
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppTheme.radiusXL)),
+      ),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(28, 32, 28, 32),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Selamat Datang 👋',
+              style: TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.w800,
+                color: AppTheme.textDark,
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Masuk menggunakan NIK dan password Anda',
+              style: TextStyle(fontSize: 14, color: AppTheme.textMid),
+            ),
+            const SizedBox(height: 32),
+
+            // NIK field
+            _fieldLabel('NIK / Username'),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _nikCtrl,
+              keyboardType: TextInputType.number,
+              style: const TextStyle(color: AppTheme.textDark, fontWeight: FontWeight.w500),
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.badge_outlined, color: AppTheme.primary, size: 20),
+                hintText: 'Masukkan NIK Anda',
+                hintStyle: const TextStyle(color: AppTheme.textLight, fontSize: 14),
+              ),
+            ),
+            const SizedBox(height: 18),
+
+            // Password field
+            _fieldLabel('Password'),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _passwordCtrl,
+              obscureText: _obscure,
+              style: const TextStyle(color: AppTheme.textDark, fontWeight: FontWeight.w500),
+              onSubmitted: (_) => _doLogin(),
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.lock_outline, color: AppTheme.primary, size: 20),
+                hintText: 'Masukkan password Anda',
+                hintStyle: const TextStyle(color: AppTheme.textLight, fontSize: 14),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                    color: AppTheme.textMid,
+                    size: 20,
+                  ),
+                  onPressed: () => setState(() => _obscure = !_obscure),
+                ),
+              ),
+            ),
+            const SizedBox(height: 32),
+
+            // Login button
+            GradientButton(
+              label: 'Masuk',
+              icon: Icons.arrow_forward_rounded,
+              onPressed: _loading ? null : _doLogin,
+              loading: _loading,
+            ),
+
+            const SizedBox(height: 24),
             Center(
               child: Text(
-                "Student Council \nSTARBHAK Election",
-                style: TextStyle(
-                  fontSize: 24,
-                  color: Colors.white,
-                ),
-              ),
-            )
-          ],
-        ),
-      ),
-    );
-  }
-
-  inputEmail() {
-    return Padding(
-      padding: EdgeInsets.only(top: 50, left: 50, right: 50),
-      child: Container(
-        height: 60,
-        width: MediaQuery.of(context).size.width,
-        child: TextFormField(
-          controller: emailController,
-          style: TextStyle(
-            color: Colors.white,
-          ),
-          decoration: InputDecoration(
-            border: InputBorder.none,
-            fillColor: Colors.lightBlueAccent,
-            labelText: "Username",
-            labelStyle: TextStyle(
-              color: Colors.white70,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(
-                color: Colors.white,
-              ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(
-                color: Colors.white,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  inputPassword() {
-    return Padding(
-      padding: EdgeInsets.only(top: 20, left: 50, right: 50),
-      child: Container(
-        height: 60,
-        width: MediaQuery.of(context).size.width,
-        child: TextField(
-          controller: passwordController,
-          style: TextStyle(
-            color: Colors.white,
-          ),
-          obscureText: true,
-          decoration: InputDecoration(
-            border: InputBorder.none,
-            labelText: 'Password',
-            labelStyle: TextStyle(
-              color: Colors.white70,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(
-                color: Colors.white,
-              ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(
-                color: Colors.white,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  buttonLogin() {
-    return Padding(
-      padding: EdgeInsets.only(top: 50, right: 50, left: 200),
-      child: Container(
-        alignment: Alignment.bottomRight,
-        height: 50,
-        width: MediaQuery.of(context).size.width,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.all(Radius.circular(30)),
-        ),
-        child: TextButton(
-          style: TextButton.styleFrom(
-            foregroundColor: AppColor().blueColor,
-            minimumSize: Size(double.infinity, 50),
-          ),
-          onPressed: () {
-            if (emailController.text.trim().length > 0 &&
-                passwordController.text.trim().length > 0) {
-              setState(() {
-                isLoading = true;
-                isError = false;
-              });
-              loginPresenter.loadLoginData(
-                  emailController.text.trim(), passwordController.text.trim());
-            } else if (emailController.text.trim().length == 0) {
-              errorAlert("Empty Email", "Please fill email field");
-            } else if (passwordController.text.trim().length == 0) {
-              errorAlert("Empty Password", "Please fill password field");
-            } else if (emailController.text.trim().length == 0 &&
-                passwordController.text.trim().length == 0) {
-              errorAlert(
-                  "Empty Field", "Make sure you fill all the field required");
-            }
-          },
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                "Sign In",
-                style: TextStyle(
-                  color: AppColor().blueColor,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              SizedBox(
-                width: 5,
-              ),
-              Icon(
-                Icons.arrow_forward_ios,
-                color: AppColor().blueColor,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  firstTime() {
-    return Padding(
-      padding: EdgeInsets.only(
-        top: 30,
-        left: 30,
-      ),
-      child: Container(
-        alignment: Alignment.topRight,
-        height: 20,
-        child: Row(
-          children: [
-            Text(
-              "Not have account yet?",
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.white70,
-              ),
-            ),
-            TextButton(
-              onPressed: () {},
-              child: Text(
-                "Register now.",
+                'STARBHAK Election App v1.0',
                 style: TextStyle(
                   fontSize: 12,
-                  color: Colors.white,
+                  color: AppTheme.textLight,
+                  letterSpacing: 0.5,
                 ),
-                textAlign: TextAlign.right,
               ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _fieldLabel(String text) => Text(
+        text,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: AppTheme.textDark,
+          letterSpacing: 0.3,
+        ),
+      );
+
+  // ─── Logic ────────────────────────────────────────────────────────────────
+
+  void _doLogin() {
+    final nik  = _nikCtrl.text.trim();
+    final pass = _passwordCtrl.text.trim();
+
+    if (nik.isEmpty) {
+      _showSnack('NIK tidak boleh kosong');
+      return;
+    }
+    if (pass.isEmpty) {
+      _showSnack('Password tidak boleh kosong');
+      return;
+    }
+
+    setState(() { _loading = true; _hasError = false; });
+    _presenter.loadLoginData(nik, pass);
+  }
+
+  void _showSnack(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      backgroundColor: AppTheme.error,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      margin: const EdgeInsets.all(16),
+    ));
   }
 
   @override
   setLoginData(LoginModel.Login loginData) async {
     if (loginData.status == 'success') {
-      final user = loginData.data![0];
+      final user  = loginData.data![0];
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString("nik",      user.nik_voter      ?? '');
-      await prefs.setString("password", user.password_voter ?? '');
-      await prefs.setString("id",       user.id_voter       ?? '');
-      await prefs.setString("role",     user.role           ?? 'voter');
-      setState(() => isLoading = false);
+      await prefs.setString('nik',      user.nik_voter      ?? '');
+      await prefs.setString('password', user.password_voter ?? '');
+      await prefs.setString('id',       user.id_voter       ?? '');
+      await prefs.setString('role',     user.role           ?? 'voter');
+      if (!mounted) return;
+      setState(() => _loading = false);
 
       if (user.role == 'admin') {
         Navigator.pushReplacement(context,
             MaterialPageRoute(builder: (_) => AdminDashboard(nik: user.nik_voter ?? '')));
         return;
       }
-
-      if (user.ischosen == '1') {
-        Navigator.pushReplacement(context,
-            MaterialPageRoute(builder: (_) => Post()));
-      } else {
-        Navigator.pushReplacement(context,
-            MaterialPageRoute(builder: (_) => Countdown()));
-      }
-    } else if (loginData.status == 'failed') {
-      setState(() { isError = true; isLoading = false; });
-      errorAlert("Login Gagal", loginData.message ?? 'Login failed');
+      Navigator.pushReplacement(context,
+          MaterialPageRoute(builder: (_) => user.ischosen == '1' ? Post() : Countdown()));
     } else {
-      setState(() { isError = true; isLoading = false; });
-      errorAlert("Data tidak ditemukan", "Periksa koneksi internet Anda");
+      if (!mounted) return;
+      setState(() { _loading = false; _hasError = true; });
+      _showSnack(loginData.message ?? 'NIK atau password salah');
     }
   }
 
   @override
   onErrorLogin(error) {
-    setState(() {
-      isError = true;
-      isLoading = false;
-    });
-    print(error);
-    errorAlert("Data not found", "Check your connection");
-  }
-
-  errorAlert(String title, String subtitle) {
-    return Alert(
-      context: context,
-      title: title,
-      desc: subtitle,
-      type: AlertType.warning,
-      buttons: [
-        DialogButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text(
-            "OK",
-            style: TextStyle(color: Colors.white, fontSize: 20),
-          ),
-        ),
-      ],
-      style: AlertStyle(
-        animationType: AnimationType.grow,
-        isCloseButton: false,
-        isOverlayTapDismiss: false,
-        descStyle: TextStyle(fontWeight: FontWeight.bold),
-        descTextAlign: TextAlign.start,
-        animationDuration: Duration(milliseconds: 400),
-        alertBorder: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-          side: BorderSide(
-            color: Colors.grey,
-          ),
-        ),
-        titleStyle: TextStyle(
-          color: Colors.red,
-        ),
-        alertAlignment: Alignment.center,
-      ),
-    ).show();
+    if (!mounted) return;
+    setState(() { _loading = false; _hasError = true; });
+    _showSnack('Tidak dapat terhubung ke server');
   }
 }

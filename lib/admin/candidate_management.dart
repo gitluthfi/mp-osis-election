@@ -8,6 +8,10 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:image_picker/image_picker.dart';
 
+// ══════════════════════════════════════════════════════════════════════════════
+// Candidate Management List
+// ══════════════════════════════════════════════════════════════════════════════
+
 class CandidateManagement extends StatefulWidget {
   const CandidateManagement({Key? key}) : super(key: key);
 
@@ -22,10 +26,10 @@ class _CandidateManagementState extends State<CandidateManagement> {
   @override
   void initState() {
     super.initState();
-    _loadCandidates();
+    _load();
   }
 
-  Future<void> _loadCandidates() async {
+  Future<void> _load() async {
     setState(() => _loading = true);
     try {
       final resp = await http.get(Uri.parse('${UrlConst().domain}Candidate'));
@@ -37,202 +41,241 @@ class _CandidateManagementState extends State<CandidateManagement> {
               .toList();
         });
       }
-    } catch (e) {
-      _showSnack('Gagal memuat kandidat: $e');
-    } finally {
-      setState(() => _loading = false);
-    }
+    } catch (_) {}
+    setState(() => _loading = false);
   }
 
-  Future<void> _deleteCandidate(DataCandidate c) async {
-    final confirm = await showDialog<bool>(
+  Future<void> _delete(DataCandidate c) async {
+    final ok = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Hapus Kandidat'),
-        content: Text('Hapus ${c.candidateName}?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Batal')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Hapus', style: TextStyle(color: Colors.white)),
-          ),
-        ],
+      builder: (_) => _ConfirmDialog(
+        title: 'Hapus Kandidat',
+        message: 'Hapus ${c.candidateName}? Tindakan ini tidak bisa dibatalkan.',
+        confirmLabel: 'Hapus',
+        confirmColor: AppTheme.error,
       ),
     );
-    if (confirm != true) return;
+    if (ok != true) return;
 
     try {
       final resp = await http.delete(
           Uri.parse('${UrlConst().domain}Candidate/Delete/${c.idCandidate}'));
       final body = json.decode(resp.body);
-      _showSnack(body['status'] == 'success' ? 'Kandidat dihapus' : body['message']);
-      if (body['status'] == 'success') _loadCandidates();
-    } catch (e) {
-      _showSnack('Error: $e');
+      _showSnack(
+        body['status'] == 'success' ? 'Kandidat berhasil dihapus' : (body['message'] ?? 'Gagal'),
+        body['status'] == 'success',
+      );
+      if (body['status'] == 'success') _load();
+    } catch (_) {
+      _showSnack('Tidak dapat terhubung ke server', false);
     }
   }
 
-  void _showSnack(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  void _showSnack(String msg, bool ok) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      backgroundColor: ok ? AppTheme.success : AppTheme.error,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      margin: const EdgeInsets.all(16),
+    ));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6FA),
+      backgroundColor: AppTheme.bgLight,
       appBar: AppBar(
-        backgroundColor: AppColor().blueColor,
+        backgroundColor: AppTheme.primary,
         foregroundColor: Colors.white,
+        elevation: 0,
         title: const Text('Kelola Kandidat'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            tooltip: 'Refresh',
+            onPressed: _load,
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: AppColor().blueColor,
+        backgroundColor: AppTheme.primary,
         foregroundColor: Colors.white,
-        icon: const Icon(Icons.add),
-        label: const Text('Tambah'),
+        icon: const Icon(Icons.add_rounded),
+        label: const Text('Tambah', style: TextStyle(fontWeight: FontWeight.w700)),
+        elevation: 6,
         onPressed: () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const _AddEditCandidateScreen()),
-          );
-          _loadCandidates();
+          await Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const _CandidateForm()));
+          _load();
         },
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
           : RefreshIndicator(
-              onRefresh: _loadCandidates,
-              child: _candidates.isEmpty
-                  ? _emptyState()
-                  : ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
-                      itemCount: _candidates.length,
-                      itemBuilder: (_, i) => _candidateCard(_candidates[i]),
-                    ),
+              color: AppTheme.primary,
+              onRefresh: _load,
+              child: _candidates.isEmpty ? _emptyState() : _list(),
             ),
     );
   }
 
   Widget _emptyState() {
-    return Center(
-      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Icon(Icons.people_outline, size: 80, color: Colors.grey.shade400),
-        const SizedBox(height: 12),
-        const Text('Belum ada kandidat',
-            style: TextStyle(color: Colors.grey, fontSize: 16)),
-        const SizedBox(height: 8),
-        const Text('Tap tombol + untuk menambahkan kandidat',
-            style: TextStyle(color: Colors.grey, fontSize: 12)),
+    return ListView(
+      children: [
+        SizedBox(height: MediaQuery.of(context).size.height * 0.25),
+        Column(children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppTheme.bgLight,
+              shape: BoxShape.circle,
+              border: Border.all(color: AppTheme.primary.withValues(alpha: 0.2), width: 2),
+            ),
+            child: Icon(Icons.people_outline_rounded,
+                size: 48, color: AppTheme.primary.withValues(alpha: 0.5)),
+          ),
+          const SizedBox(height: 16),
+          const Text('Belum ada kandidat',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.textDark)),
+          const SizedBox(height: 6),
+          const Text('Tap tombol + untuk menambahkan',
+              style: TextStyle(fontSize: 13, color: AppTheme.textMid)),
+        ]),
+      ],
+    );
+  }
+
+  Widget _list() {
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+      itemCount: _candidates.length,
+      itemBuilder: (_, i) => _candidateCard(_candidates[i], i),
+    );
+  }
+
+  Widget _candidateCard(DataCandidate c, int i) {
+    final accentColors = [AppTheme.primary, AppTheme.accent, AppTheme.success, AppTheme.warning];
+    final color = accentColors[i % accentColors.length];
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+        boxShadow: AppTheme.cardShadow,
+      ),
+      child: Row(children: [
+        // Photo
+        ClipRRect(
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(AppTheme.radiusLarge),
+            bottomLeft: Radius.circular(AppTheme.radiusLarge),
+          ),
+          child: SizedBox(
+            width: 90, height: 110,
+            child: c.candidatePhoto != null
+                ? Image.network(c.candidatePhoto!, fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _placeholder(color))
+                : _placeholder(color),
+          ),
+        ),
+        // Info
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  'No. ${c.candidateId}',
+                  style: TextStyle(
+                      fontSize: 11, fontWeight: FontWeight.w700, color: color),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                c.candidateName ?? '-',
+                style: const TextStyle(
+                    fontSize: 15, fontWeight: FontWeight.w800, color: AppTheme.textDark),
+              ),
+              if (c.description != null && c.description!.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  c.description!,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12, color: AppTheme.textMid, height: 1.4),
+                ),
+              ],
+            ]),
+          ),
+        ),
+        // Actions
+        Padding(
+          padding: const EdgeInsets.only(right: 8),
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            _actionBtn(Icons.edit_rounded, AppTheme.primary, () async {
+              await Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => _CandidateForm(candidate: c)));
+              _load();
+            }),
+            const SizedBox(height: 4),
+            _actionBtn(Icons.delete_rounded, AppTheme.error, () => _delete(c)),
+          ]),
+        ),
       ]),
     );
   }
 
-  Widget _candidateCard(DataCandidate c) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(children: [
-          // ── foto ────────────────────────────────────────────────
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: SizedBox(
-              width: 70,
-              height: 70,
-              child: c.candidatePhoto != null
-                  ? Image.network(c.candidatePhoto!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _photoPlaceholder())
-                  : _photoPlaceholder(),
-            ),
-          ),
-          const SizedBox(width: 12),
-          // ── info ─────────────────────────────────────────────────
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: AppColor().blueColor,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text('No. ${c.candidateId}',
-                      style: const TextStyle(color: Colors.white, fontSize: 11)),
-                ),
-              ]),
-              const SizedBox(height: 4),
-              Text(c.candidateName ?? '',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 15)),
-              if (c.description != null && c.description!.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: Text(c.description!,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Colors.black54, fontSize: 12)),
-                ),
-            ]),
-          ),
-          // ── actions ──────────────────────────────────────────────
-          Column(children: [
-            IconButton(
-              icon: Icon(Icons.edit, color: AppColor().blueColor),
-              tooltip: 'Edit',
-              onPressed: () async {
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => _AddEditCandidateScreen(candidate: c)),
-                );
-                _loadCandidates();
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete, color: Colors.red),
-              tooltip: 'Hapus',
-              onPressed: () => _deleteCandidate(c),
-            ),
-          ]),
-        ]),
+  Widget _placeholder(Color color) {
+    return Container(
+      color: color.withValues(alpha: 0.1),
+      child: Center(child: Icon(Icons.person_rounded, color: color.withValues(alpha: 0.4), size: 40)),
+    );
+  }
+
+  Widget _actionBtn(IconData icon, Color color, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, color: color, size: 18),
       ),
     );
   }
-
-  Widget _photoPlaceholder() {
-    return Container(
-      color: Colors.grey.shade200,
-      child: const Icon(Icons.person, color: Colors.grey, size: 36),
-    );
-  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// Add / Edit form
+// Add / Edit Form
 // ══════════════════════════════════════════════════════════════════════════════
 
-class _AddEditCandidateScreen extends StatefulWidget {
+class _CandidateForm extends StatefulWidget {
   final DataCandidate? candidate;
-  const _AddEditCandidateScreen({this.candidate});
+  const _CandidateForm({this.candidate});
 
   @override
-  State<_AddEditCandidateScreen> createState() => _AddEditCandidateScreenState();
+  State<_CandidateForm> createState() => _CandidateFormState();
 }
 
-class _AddEditCandidateScreenState extends State<_AddEditCandidateScreen> {
-  final _formKey = GlobalKey<FormState>();
+class _CandidateFormState extends State<_CandidateForm> {
+  final _formKey  = GlobalKey<FormState>();
   late TextEditingController _idCtrl;
   late TextEditingController _nameCtrl;
   late TextEditingController _descCtrl;
 
-  // Simpan XFile agar bisa baca bytes + mimeType secara eksplisit
   XFile? _pickedXFile;
-  File?  _pickedImage;   // hanya untuk preview Image.file()
-  bool _saving = false;
+  File?  _pickedImage;
+  bool   _saving = false;
+
   bool get _isEdit => widget.candidate != null;
 
   @override
@@ -246,21 +289,15 @@ class _AddEditCandidateScreenState extends State<_AddEditCandidateScreen> {
 
   @override
   void dispose() {
-    _idCtrl.dispose();
-    _nameCtrl.dispose();
-    _descCtrl.dispose();
+    _idCtrl.dispose(); _nameCtrl.dispose(); _descCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _pickImage() async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(
-        source: ImageSource.gallery, imageQuality: 80, maxWidth: 800);
+    final picked = await ImagePicker()
+        .pickImage(source: ImageSource.gallery, imageQuality: 80, maxWidth: 800);
     if (picked != null) {
-      setState(() {
-        _pickedXFile  = picked;
-        _pickedImage  = File(picked.path);
-      });
+      setState(() { _pickedXFile = picked; _pickedImage = File(picked.path); });
     }
   }
 
@@ -273,57 +310,62 @@ class _AddEditCandidateScreenState extends State<_AddEditCandidateScreen> {
           ? Uri.parse('${UrlConst().domain}Candidate/Update/${widget.candidate!.idCandidate}')
           : Uri.parse('${UrlConst().domain}Candidate/Add');
 
-      final request = http.MultipartRequest('POST', uri)
+      final req = http.MultipartRequest('POST', uri)
         ..fields['candidate_id']   = _idCtrl.text.trim()
         ..fields['candidate_name'] = _nameCtrl.text.trim()
         ..fields['description']    = _descCtrl.text.trim();
 
       if (_pickedXFile != null) {
-        // Baca bytes agar tidak bergantung pada filesystem path Android
         final bytes    = await _pickedXFile!.readAsBytes();
-        final mimeType = _pickedXFile!.mimeType ?? 'image/jpeg';
-        final mimeParts = mimeType.split('/');
-        final subtype   = mimeParts.length > 1 ? mimeParts[1] : 'jpeg';
-
-        // Tentukan nama file berdasarkan subtype agar ekstensi selalu ada
-        final filename = 'photo_${DateTime.now().millisecondsSinceEpoch}.$subtype';
-
-        request.files.add(http.MultipartFile.fromBytes(
-          'photo',
-          bytes,
-          filename:    filename,
-          contentType: MediaType(mimeParts[0], subtype),
+        final mime     = _pickedXFile!.mimeType ?? 'image/jpeg';
+        final parts    = mime.split('/');
+        final subtype  = parts.length > 1 ? parts[1] : 'jpeg';
+        req.files.add(http.MultipartFile.fromBytes(
+          'photo', bytes,
+          filename: 'photo_${DateTime.now().millisecondsSinceEpoch}.$subtype',
+          contentType: MediaType(parts[0], subtype),
         ));
-        debugPrint('[Upload] Sending photo: $filename, mime: $mimeType, ${bytes.length} bytes');
       }
 
-      final streamed = await request.send();
+      final streamed = await req.send();
       final resp     = await http.Response.fromStream(streamed);
-      debugPrint('[Upload] Response ${resp.statusCode}: ${resp.body}');
 
       Map<String, dynamic> body;
       try {
         body = json.decode(resp.body);
       } catch (_) {
-        throw Exception('Response tidak valid (${resp.statusCode}): ${resp.body}');
+        throw Exception('Response tidak valid (${resp.statusCode})');
       }
 
       if (!mounted) return;
-      // Capture messenger SEBELUM pop agar context tidak invalid
       final messenger = ScaffoldMessenger.of(context);
       if (body['status'] == 'success') {
         Navigator.of(context).pop(true);
         messenger.showSnackBar(SnackBar(
-            content: Text(_isEdit ? 'Kandidat diperbarui' : 'Kandidat ditambahkan')));
+          content: Text(_isEdit ? 'Kandidat berhasil diperbarui' : 'Kandidat berhasil ditambahkan'),
+          backgroundColor: AppTheme.success,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          margin: const EdgeInsets.all(16),
+        ));
       } else {
-        messenger.showSnackBar(
-            SnackBar(content: Text(body['message'] ?? 'Gagal menyimpan')));
+        messenger.showSnackBar(SnackBar(
+          content: Text(body['message'] ?? 'Gagal menyimpan'),
+          backgroundColor: AppTheme.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          margin: const EdgeInsets.all(16),
+        ));
       }
     } catch (e) {
-      debugPrint('[Upload] Error: $e');
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Error: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Error: $e'),
+        backgroundColor: AppTheme.error,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
+      ));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -332,10 +374,11 @@ class _AddEditCandidateScreenState extends State<_AddEditCandidateScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6FA),
+      backgroundColor: AppTheme.bgLight,
       appBar: AppBar(
-        backgroundColor: AppColor().blueColor,
+        backgroundColor: AppTheme.primary,
         foregroundColor: Colors.white,
+        elevation: 0,
         title: Text(_isEdit ? 'Edit Kandidat' : 'Tambah Kandidat'),
       ),
       body: SingleChildScrollView(
@@ -343,90 +386,122 @@ class _AddEditCandidateScreenState extends State<_AddEditCandidateScreen> {
         child: Form(
           key: _formKey,
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            // ── foto picker ───────────────────────────────────────────
-            Center(
-              child: GestureDetector(
-                onTap: _pickImage,
-                child: Stack(alignment: Alignment.bottomRight, children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: SizedBox(
-                      width: 140,
-                      height: 140,
-                      child: _pickedImage != null
-                          ? Image.file(_pickedImage!, fit: BoxFit.cover)
-                          : (widget.candidate?.candidatePhoto != null
-                              ? Image.network(widget.candidate!.candidatePhoto!,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => _placeholder())
-                              : _placeholder()),
-                    ),
-                  ),
-                  Container(
-                    margin: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                        color: AppColor().blueColor,
-                        shape: BoxShape.circle),
-                    padding: const EdgeInsets.all(6),
-                    child: const Icon(Icons.camera_alt,
-                        color: Colors.white, size: 18),
-                  ),
-                ]),
-              ),
-            ),
-            const SizedBox(height: 6),
-            const Center(
-              child: Text('Tap foto untuk ganti gambar',
-                  style: TextStyle(color: Colors.grey, fontSize: 12)),
-            ),
+            _photoPicker(),
             const SizedBox(height: 24),
-            // ── form fields ──────────────────────────────────────────
-            _label('Nomor Urut Kandidat'),
-            _field(
-              controller: _idCtrl,
-              hint: 'Contoh: 1',
-              keyboardType: TextInputType.number,
-              validator: (v) =>
-                  v == null || v.isEmpty ? 'Nomor urut tidak boleh kosong' : null,
-            ),
-            const SizedBox(height: 16),
-            _label('Nama Kandidat'),
-            _field(
-              controller: _nameCtrl,
-              hint: 'Nama lengkap kandidat',
-              validator: (v) =>
-                  v == null || v.isEmpty ? 'Nama tidak boleh kosong' : null,
-            ),
-            const SizedBox(height: 16),
-            _label('Deskripsi / Visi Misi'),
-            _field(
-              controller: _descCtrl,
-              hint: 'Deskripsi singkat kandidat...',
-              maxLines: 4,
-            ),
-            const SizedBox(height: 28),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                icon: _saving
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white))
-                    : const Icon(Icons.save),
-                label: Text(_saving
-                    ? 'Menyimpan...'
-                    : (_isEdit ? 'Simpan Perubahan' : 'Tambah Kandidat')),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColor().blueColor,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+            _card(children: [
+              _label('Nomor Urut Kandidat'),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _idCtrl,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  prefixIcon: Icon(Icons.tag_rounded, color: AppTheme.primary, size: 20),
+                  hintText: 'Contoh: 1',
                 ),
-                onPressed: _saving ? null : _save,
+                validator: (v) => (v?.isEmpty ?? true) ? 'Nomor urut wajib diisi' : null,
               ),
+              const SizedBox(height: 16),
+              _label('Nama Lengkap Kandidat'),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _nameCtrl,
+                decoration: const InputDecoration(
+                  prefixIcon: Icon(Icons.person_rounded, color: AppTheme.primary, size: 20),
+                  hintText: 'Masukkan nama lengkap',
+                ),
+                validator: (v) => (v?.isEmpty ?? true) ? 'Nama wajib diisi' : null,
+              ),
+              const SizedBox(height: 16),
+              _label('Visi & Misi / Deskripsi'),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _descCtrl,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  prefixIcon: Padding(
+                    padding: EdgeInsets.only(bottom: 64),
+                    child: Icon(Icons.description_rounded, color: AppTheme.primary, size: 20),
+                  ),
+                  hintText: 'Tuliskan visi, misi, atau deskripsi singkat…',
+                  alignLabelWithHint: true,
+                ),
+              ),
+            ]),
+            const SizedBox(height: 24),
+            GradientButton(
+              label: _isEdit ? 'Simpan Perubahan' : 'Tambah Kandidat',
+              icon: _isEdit ? Icons.save_rounded : Icons.add_rounded,
+              onPressed: _saving ? null : _save,
+              loading: _saving,
+            ),
+            const SizedBox(height: 20),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Widget _photoPicker() {
+    return GestureDetector(
+      onTap: _pickImage,
+      child: Container(
+        width: double.infinity,
+        height: 200,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+          boxShadow: AppTheme.cardShadow,
+          border: Border.all(
+            color: _pickedImage != null
+                ? AppTheme.primary.withValues(alpha: 0.4)
+                : AppTheme.primary.withValues(alpha: 0.15),
+            width: 1.5,
+          ),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+          child: Stack(fit: StackFit.expand, children: [
+            // Preview
+            if (_pickedImage != null)
+              Image.file(_pickedImage!, fit: BoxFit.cover)
+            else if (widget.candidate?.candidatePhoto != null)
+              Image.network(widget.candidate!.candidatePhoto!, fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => _photoEmptyState())
+            else
+              _photoEmptyState(),
+            // Overlay
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withValues(alpha: 0.5),
+                  ],
+                ),
+              ),
+            ),
+            Positioned(
+              bottom: 12, left: 0, right: 0,
+              child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.9),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.camera_alt_rounded, color: AppTheme.primary, size: 16),
+                    const SizedBox(width: 6),
+                    Text(
+                      _pickedImage != null ? 'Ganti Foto' : 'Pilih Foto',
+                      style: const TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w700, color: AppTheme.primary),
+                    ),
+                  ]),
+                ),
+              ]),
             ),
           ]),
         ),
@@ -434,45 +509,84 @@ class _AddEditCandidateScreenState extends State<_AddEditCandidateScreen> {
     );
   }
 
-  Widget _placeholder() => Container(
-        color: Colors.grey.shade200,
-        child: const Icon(Icons.person, color: Colors.grey, size: 60),
-      );
-
-  Widget _label(String text) => Padding(
-        padding: const EdgeInsets.only(bottom: 6),
-        child: Text(text,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-      );
-
-  Widget _field({
-    required TextEditingController controller,
-    String? hint,
-    int maxLines = 1,
-    TextInputType? keyboardType,
-    String? Function(String?)? validator,
-  }) {
-    return TextFormField(
-      controller: controller,
-      maxLines: maxLines,
-      keyboardType: keyboardType,
-      validator: validator,
-      decoration: InputDecoration(
-        hintText: hint,
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+  Widget _photoEmptyState() {
+    return Container(
+      color: AppTheme.bgLight,
+      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Icon(Icons.add_photo_alternate_rounded,
+            size: 48, color: AppTheme.primary.withValues(alpha: 0.4)),
+        const SizedBox(height: 8),
+        Text(
+          'Ketuk untuk memilih foto kandidat',
+          style: TextStyle(
+              fontSize: 13, color: AppTheme.textMid.withValues(alpha: 0.8)),
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: AppColor().blueColor),
-        ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      ]),
+    );
+  }
+
+  Widget _card({required List<Widget> children}) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+        boxShadow: AppTheme.cardShadow,
       ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children),
+    );
+  }
+
+  Widget _label(String text) => Text(
+        text,
+        style: const TextStyle(
+            fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.textDark),
+      );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Reusable confirm dialog
+// ══════════════════════════════════════════════════════════════════════════════
+
+class _ConfirmDialog extends StatelessWidget {
+  final String title, message, confirmLabel;
+  final Color confirmColor;
+
+  const _ConfirmDialog({
+    required this.title,
+    required this.message,
+    required this.confirmLabel,
+    required this.confirmColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppTheme.radiusLarge)),
+      title: Text(title,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800,
+              color: AppTheme.textDark)),
+      content: Text(message,
+          style: const TextStyle(fontSize: 14, color: AppTheme.textMid, height: 1.5)),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Batal',
+              style: TextStyle(color: AppTheme.textMid, fontWeight: FontWeight.w600)),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: confirmColor,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radiusMedium)),
+          ),
+          onPressed: () => Navigator.pop(context, true),
+          child: Text(confirmLabel,
+              style: const TextStyle(fontWeight: FontWeight.w700)),
+        ),
+      ],
     );
   }
 }
