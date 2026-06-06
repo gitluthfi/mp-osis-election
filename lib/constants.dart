@@ -7,7 +7,8 @@ class AppColor {
 }
 
 class UrlConst {
-  final String domain = "http://localhost:3000/api/";
+//  final String domain = "http://localhost:3000/api/";
+  final String domain = "https://backend-flutter.homebase.my.id:8081/api/";
 }
 
 // ─── Design System ────────────────────────────────────────────────────────────
