@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:election_flutter_app/admin/candidate_management.dart';
+import 'package:election_flutter_app/admin/voter_management.dart';
 import 'package:election_flutter_app/constants.dart';
 import 'package:election_flutter_app/login.dart';
 import 'package:flutter/material.dart';
@@ -379,14 +380,43 @@ class _AdminDashboardState extends State<AdminDashboard>
   }
 
   Widget _menuCard() {
+    return Column(children: [
+      _menuItem(
+        icon: Icons.manage_accounts_rounded,
+        gradient: AppTheme.primaryGradient,
+        title: 'Kelola Kandidat',
+        subtitle: 'Tambah, edit, atau hapus kandidat',
+        onTap: () async {
+          await Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const CandidateManagement()));
+          _load();
+        },
+      ),
+      const SizedBox(height: 10),
+      _menuItem(
+        icon: Icons.people_alt_rounded,
+        gradient: const LinearGradient(
+          colors: [Color(0xFF00C48C), Color(0xFF00916E)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        title: 'Kelola Data Voter',
+        subtitle: 'Download template & import data voter via Excel',
+        onTap: () => Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const VoterManagement())),
+      ),
+    ]);
+  }
+
+  Widget _menuItem({
+    required IconData icon,
+    required Gradient gradient,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
     return GestureDetector(
-      onTap: () async {
-        await Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const CandidateManagement()),
-        );
-        _load();
-      },
+      onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -398,20 +428,20 @@ class _AdminDashboardState extends State<AdminDashboard>
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              gradient: AppTheme.primaryGradient,
+              gradient: gradient,
               borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
             ),
-            child: const Icon(Icons.manage_accounts_rounded, color: Colors.white, size: 24),
+            child: Icon(icon, color: Colors.white, size: 24),
           ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('Kelola Kandidat',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700,
+              Text(title,
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700,
                       color: AppTheme.textDark)),
               const SizedBox(height: 2),
-              const Text('Tambah, edit, atau hapus kandidat',
-                  style: TextStyle(fontSize: 12, color: AppTheme.textMid)),
+              Text(subtitle,
+                  style: const TextStyle(fontSize: 12, color: AppTheme.textMid)),
             ]),
           ),
           Container(

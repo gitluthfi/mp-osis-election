@@ -310,6 +310,52 @@ app.get('/api/Dashboard', async (req, res) => {
   }
 });
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// VOTER ENDPOINTS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// POST /api/Voter/ImportBulk
+// Body: { "voters": [{ "nik": "...", "code_voter": "...", "password": "..." }] }
+app.post('/api/Voter/ImportBulk', async (req, res) => {
+  const { voters } = req.body;
+
+  if (!Array.isArray(voters) || voters.length === 0)
+    return res.json({ status: 'failed', message: 'Data voter tidak boleh kosong' });
+
+  for (let i = 0; i < voters.length; i++) {
+    const v = voters[i];
+    if (!v.nik || !v.code_voter || !v.password)
+      return res.json({
+        status: 'failed',
+        message: `Data tidak lengkap pada baris ${i + 2} (NIK/Kelas/Password wajib diisi)`,
+      });
+  }
+
+  try {
+    let inserted = 0;
+    let skipped  = 0;
+
+    for (const v of voters) {
+      const [result] = await db.query(
+        `INSERT IGNORE INTO voter (nik_voter, code_voter, password_voter, islogin, ischosen, role)
+         VALUES (?, ?, ?, '0', '0', 'voter')`,
+        [String(v.nik).trim(), String(v.code_voter).trim(), String(v.password).trim()]
+      );
+      if (result.affectedRows > 0) inserted++;
+      else skipped++;
+    }
+
+    const msg = skipped > 0
+      ? `${inserted} voter berhasil diimport, ${skipped} dilewati (NIK sudah terdaftar)`
+      : `${inserted} voter berhasil diimport`;
+
+    return res.json({ status: 'success', message: msg });
+  } catch (err) {
+    console.error('[ImportBulk]', err.message);
+    return res.json({ status: 'failed', message: 'Server error: ' + err.message });
+  }
+});
+
 // ─── Global error handler — selalu kembalikan JSON, bukan HTML ────────────────
 app.use((err, req, res, next) => {
   console.error('Unhandled server error:', err.message);

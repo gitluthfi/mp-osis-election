@@ -19,6 +19,10 @@ dependencies:
   confetti: ^0.7.0
   rflutter_alert: ^2.0.7
   image_picker: ^1.1.2
+  excel: ^4.0.0
+  path_provider: ^2.1.0
+  open_filex: ^4.7.0
+  file_selector: ^1.0.3
 
 dev_dependencies:
   flutter_test:
