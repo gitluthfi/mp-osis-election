@@ -1,0 +1,10 @@
+[admin]
+user: 123456
+pass: admin123
+
+[siswa]
+user: 152
+pass: 123
+
+# Notes
+jika aplikasi ini benar benar akan digunakan, perlu setup backendnya , hubungi pengembang untuk mendapatkan info terbaru

@@ -402,8 +402,11 @@ class _AdminDashboardState extends State<AdminDashboard>
         ),
         title: 'Kelola Data Voter',
         subtitle: 'Download template & import data voter via Excel',
-        onTap: () => Navigator.push(context,
-            MaterialPageRoute(builder: (_) => const VoterManagement())),
+        onTap: () async {
+          await Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const VoterManagement()));
+          _load();
+        },
       ),
     ]);
   }

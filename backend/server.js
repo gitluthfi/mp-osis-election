@@ -68,7 +68,9 @@ function voterRow(row) {
 
 function photoUrl(req, filename) {
   if (!filename) return null;
-  return `http://localhost:${PORT}/uploads/candidates/${filename}`;
+  const protocol = req ? req.protocol : 'http';
+  const host     = req ? req.get('host') : `localhost:${PORT}`;
+  return `${protocol}://${host}/uploads/candidates/${filename}`;
 }
 
 function candidateRow(row, req) {
@@ -299,7 +301,7 @@ app.get('/api/Dashboard', async (req, res) => {
         vote_results:  results.map(r => ({
           candidate_id:   r.candidate_id,
           candidate_name: r.candidate_name,
-          candidate_photo: r.candidate_photo ? photoUrl(null, r.candidate_photo) : null,
+          candidate_photo: r.candidate_photo ? photoUrl(req, r.candidate_photo) : null,
           vote_count:     Number(r.vote_count),
         })),
       },
